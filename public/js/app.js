@@ -108,7 +108,10 @@ class AndroidOS {
     
     const app = this.apps[appName];
     if (app && app.getHTML) {
-      document.getElementById('appContainer').innerHTML = app.getHTML();
+      const appContainer = document.getElementById('appContainer');
+      appContainer.innerHTML = app.getHTML();
+      // Add app-specific class for styling
+      appContainer.className = `screen active ${appName}`;
     }
   }
 

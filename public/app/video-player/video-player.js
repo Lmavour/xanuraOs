@@ -4,8 +4,18 @@ class VideoPlayerApp {
   }
 
   async init() {
+    await this.loadCSS();
     this.setupEventListeners();
     await this.loadVideoPlayer();
+  }
+
+  async loadCSS() {
+    if (!document.querySelector('link[href*="video-player.css"]')) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = '/app/video-player/video-player.css';
+      document.head.appendChild(link);
+    }
   }
 
   setupEventListeners() {

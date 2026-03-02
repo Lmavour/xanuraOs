@@ -5,7 +5,17 @@ class SystemInfoApp {
   }
 
   async init() {
+    await this.loadCSS();
     await this.loadSystemInfo();
+  }
+
+  async loadCSS() {
+    if (!document.querySelector('link[href*="system-info.css"]')) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = '/app/system-info/system-info.css';
+      document.head.appendChild(link);
+    }
   }
 
   async loadSystemInfo() {

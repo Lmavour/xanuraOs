@@ -4,8 +4,18 @@ class PhotoViewerApp {
   }
 
   async init() {
+    await this.loadCSS();
     this.setupEventListeners();
     await this.loadPhotoViewer();
+  }
+
+  async loadCSS() {
+    if (!document.querySelector('link[href*="photo-viewer.css"]')) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = '/app/photo-viewer/photo-viewer.css';
+      document.head.appendChild(link);
+    }
   }
 
   setupEventListeners() {

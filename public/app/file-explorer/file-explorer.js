@@ -5,8 +5,18 @@ class FileExplorerApp {
   }
 
   async init() {
+    await this.loadCSS();
     this.setupEventListeners();
     await this.loadFileExplorer();
+  }
+
+  async loadCSS() {
+    if (!document.querySelector('link[href*="file-explorer.css"]')) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = '/app/file-explorer/file-explorer.css';
+      document.head.appendChild(link);
+    }
   }
 
   setupEventListeners() {

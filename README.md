@@ -4,10 +4,33 @@ A modular, web-based Android OS interface built with Node.js, Express, and vanil
 
 ## 📸 Screenshots
 
-![Home Screen](https://via.placeholder.com/800x600/1e3c72/ffffff?text=Home+Screen)
-![File Explorer](https://via.placeholder.com/800x600/2196F3/ffffff?text=File+Explorer)
-![Photo Viewer](https://via.placeholder.com/800x600/4CAF50/ffffff?text=Photo+Viewer)
-![Video Player](https://via.placeholder.com/800x600/F44336/ffffff?text=Video+Player)
+### Desktop View
+![Home Screen - Desktop](https://iili.io/qB34FMx.md.png)
+
+### Mobile View
+![Home Screen - Mobile](https://iili.io/qB36pIe.png)
+
+### Application Screenshots
+
+#### File Explorer
+- Full folder navigation with breadcrumb trail
+- File upload with progress tracking
+- Create folders and manage files
+
+#### Photo Viewer
+- Grid layout with lazy loading
+- Modal viewer with zoom capabilities
+- Tab filtering (All Photos, Recent)
+
+#### Video Player
+- HTML5 video player with controls
+- Video gallery with metadata
+- Responsive design for all devices
+
+#### System Info
+- Real-time system monitoring
+- CPU, Memory, and Storage information
+- Visual progress bars and charts
 
 ## 🚀 Features
 

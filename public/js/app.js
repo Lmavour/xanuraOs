@@ -3,6 +3,7 @@ class AndroidOS {
     this.currentScreen = 'home';
     this.currentApp = null;
     this.apps = {};
+    this.appLoader = new AutoAppLoader(this);
     this.init();
   }
 
@@ -13,43 +14,11 @@ class AndroidOS {
     setInterval(() => this.updateClock(), 1000);
     setInterval(() => this.updateDateTime(), 60000);
     
-    // Load app modules
-    await this.loadAppModules();
-  }
-
-  async loadAppModules() {
-    try {
-      // Load System Info App
-      await this.loadScript('/app/system-info/system-info.js');
-      this.apps['system-info'] = new SystemInfoApp(this);
-      
-      // Load File Explorer App
-      await this.loadScript('/app/file-explorer/file-explorer.js');
-      this.apps['file-explorer'] = new FileExplorerApp(this);
-      
-      // Load Photo Viewer App
-      await this.loadScript('/app/photo-viewer/photo-viewer.js');
-      this.apps['photo-viewer'] = new PhotoViewerApp(this);
-      
-      // Load Video Player App
-      await this.loadScript('/app/video-player/video-player.js');
-      this.apps['video-player'] = new VideoPlayerApp(this);
-      
-      console.log('All app modules loaded successfully');
-    } catch (error) {
-      console.error('Error loading app modules:', error);
-      this.showError('Failed to load applications');
-    }
-  }
-
-  loadScript(src) {
-    return new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = src;
-      script.onload = resolve;
-      script.onerror = reject;
-      document.head.appendChild(script);
-    });
+    // Load app modules automatically
+    this.apps = await this.appLoader.loadApps();
+    
+    // Render app grid automatically
+    await this.appLoader.renderAppGrid();
   }
 
   setupEventListeners() {
@@ -112,7 +81,26 @@ class AndroidOS {
       appContainer.innerHTML = app.getHTML();
       // Add app-specific class for styling
       appContainer.className = `screen active ${appName}`;
+      
+      // Load app-specific CSS
+      this.loadAppCSS(appName);
     }
+  }
+
+  loadAppCSS(appName) {
+    // Check if CSS is already loaded
+    const existingLink = document.getElementById(`app-css-${appName}`);
+    if (existingLink) {
+      return; // CSS already loaded
+    }
+    
+    // Create and append CSS link
+    const link = document.createElement('link');
+    link.id = `app-css-${appName}`;
+    link.rel = 'stylesheet';
+    link.type = 'text/css';
+    link.href = `/app/${appName}/${appName}.css`;
+    document.head.appendChild(link);
   }
 
   handleNavigation(action) {

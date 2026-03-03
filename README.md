@@ -2,7 +2,12 @@
 
 A modular, web-based Android OS interface built with Node.js, Express, and vanilla JavaScript. Features a full-screen Android-like experience with multiple apps, file management, and media viewing capabilities.
 
-## 📸 Screenshots
+## 📚 Documentation
+
+- **[Development Guide](DEVELOPMENT.md)** - Complete guide for developing new applications
+- **[API Reference](#api-reference)** - Available APIs for application development
+
+## � Screenshots
 
 ### Desktop View
 ![Home Screen - Desktop](https://iili.io/qB34FMx.md.png)
@@ -290,4 +295,4 @@ For issues and questions:
 
 ---
 
-**Built with ❤️ using modern web technologies**
+**Built with ❤️ by xanura teams**

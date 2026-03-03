@@ -10,10 +10,10 @@ const app = express();
 const PORT = process.env.PORT || 4038;
 
 // Setup multer for file uploads
-const upload = multer({ 
+const upload = multer({
   dest: path.join(__dirname, '..', 'main-data'),
   limits: {
-    fileSize: 100 * 1024 * 1024 // 100MB limit
+    fileSize: 2 * 1024 * 1024 * 1024 // 2GB limit
   }
 });
 
@@ -298,6 +298,174 @@ app.get('/api/videos', (req, res) => {
   }
 });
 
+// Notes endpoints
+const notesPath = path.join(__dirname, '..', 'main-data', 'notes.json');
+
+// Ensure notes file exists
+if (!fs.existsSync(notesPath)) {
+  fs.writeFileSync(notesPath, JSON.stringify([]));
+}
+
+// Get all notes
+app.get('/api/notes', (req, res) => {
+  try {
+    if (fs.existsSync(notesPath)) {
+      const notesData = fs.readFileSync(notesPath, 'utf8');
+      const notes = JSON.parse(notesData);
+      res.json(notes);
+    } else {
+      res.json([]);
+    }
+  } catch (error) {
+    console.error('Error reading notes:', error);
+    res.status(500).json({ error: 'Failed to read notes' });
+  }
+});
+
+// Save or update a note
+app.post('/api/notes', (req, res) => {
+  try {
+    const note = req.body;
+    let notes = [];
+    
+    // Read existing notes
+    if (fs.existsSync(notesPath)) {
+      const notesData = fs.readFileSync(notesPath, 'utf8');
+      notes = JSON.parse(notesData);
+    }
+    
+    // Find if note exists
+    const existingIndex = notes.findIndex(n => n.id === note.id);
+    
+    if (existingIndex >= 0) {
+      // Update existing note
+      notes[existingIndex] = note;
+    } else {
+      // Add new note
+      notes.push(note);
+    }
+    
+    // Sort by modified date (newest first)
+    notes.sort((a, b) => new Date(b.modified) - new Date(a.modified));
+    
+    // Save notes
+    fs.writeFileSync(notesPath, JSON.stringify(notes, null, 2));
+    
+    res.json(note);
+  } catch (error) {
+    console.error('Error saving note:', error);
+    res.status(500).json({ error: 'Failed to save note' });
+  }
+});
+
+// Delete a note
+app.delete('/api/notes/:id', (req, res) => {
+  try {
+    const noteId = req.params.id;
+    let notes = [];
+    
+    // Read existing notes
+    if (fs.existsSync(notesPath)) {
+      const notesData = fs.readFileSync(notesPath, 'utf8');
+      notes = JSON.parse(notesData);
+    }
+    
+    // Filter out the note to delete
+    const filteredNotes = notes.filter(n => n.id !== noteId);
+    
+    // Save updated notes
+    fs.writeFileSync(notesPath, JSON.stringify(filteredNotes, null, 2));
+    
+    res.json({ message: 'Note deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting note:', error);
+    res.status(500).json({ error: 'Failed to delete note' });
+  }
+});
+
+
+// Apps endpoint - automatically discover available apps
+app.get('/api/apps', (req, res) => {
+  try {
+    const appsDir = path.join(__dirname, 'public', 'app');
+    const apps = [];
+    
+    if (fs.existsSync(appsDir)) {
+      const appFolders = fs.readdirSync(appsDir).filter(file => {
+        const appPath = path.join(appsDir, file);
+        return fs.statSync(appPath).isDirectory();
+      });
+      
+      for (const appFolder of appFolders) {
+        const appConfigPath = path.join(appsDir, appFolder, 'app.json');
+        if (fs.existsSync(appConfigPath)) {
+          try {
+            const appConfig = JSON.parse(fs.readFileSync(appConfigPath, 'utf8'));
+            apps.push({
+              id: appFolder,
+              ...appConfig
+            });
+          } catch (err) {
+            console.error(`Error reading app config for ${appFolder}:`, err);
+          }
+        }
+      }
+    }
+    
+    res.json(apps);
+  } catch (error) {
+    console.error('Error discovering apps:', error);
+    res.status(500).json({ error: 'Failed to discover apps' });
+  }
+});
+
+// Settings endpoints
+const settingsPath = path.join(__dirname, '..', 'main-data', 'settings.json');
+
+// Ensure settings file exists
+if (!fs.existsSync(settingsPath)) {
+  fs.writeFileSync(settingsPath, JSON.stringify({
+    theme: 'light',
+    language: 'id-ID',
+    notifications: true,
+    autoSave: true,
+    fontSize: 'medium',
+    animationSpeed: 'normal'
+  }));
+}
+
+// Get settings
+app.get('/api/settings', (req, res) => {
+  try {
+    if (fs.existsSync(settingsPath)) {
+      const settingsData = fs.readFileSync(settingsPath, 'utf8');
+      const settings = JSON.parse(settingsData);
+      res.json(settings);
+    } else {
+      res.json({});
+    }
+  } catch (error) {
+    console.error('Error reading settings:', error);
+    res.status(500).json({ error: 'Failed to read settings' });
+  }
+});
+
+// Save settings
+app.post('/api/settings', (req, res) => {
+  try {
+    const settings = req.body;
+    
+    // Save settings
+    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+    
+    res.json({ message: 'Settings saved successfully' });
+  } catch (error) {
+    console.error('Error saving settings:', error);
+    res.status(500).json({ error: 'Failed to save settings' });
+  }
+});
+
+
 // Restart server endpoint
 app.post('/api/restart', (req, res) => {
   res.json({ message: 'Server restarting...' });
@@ -313,6 +481,8 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`Home Server running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Home Server running on http://0.0.0.0:${PORT}`);
+  console.log(`Access locally at: http://localhost:${PORT}`);
+  console.log(`Access on network at: http://192.168.0.50:${PORT}`);
 });

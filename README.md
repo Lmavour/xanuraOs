@@ -5,7 +5,7 @@ A modular, web-based Android OS interface built with Node.js, Express, and vanil
 ## 📚 Documentation
 
 - **[Development Guide](DEVELOPMENT.md)** - Complete guide for developing new applications
-- **[API Reference](#api-reference)** - Available APIs for application development
+- **[API Reference](API-REFERENCE.md)** - Available APIs for application development
 
 ## � Screenshots
 

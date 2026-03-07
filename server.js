@@ -37,6 +37,8 @@ app.get('/api/system', async (req, res) => {
     const networkStats = await si.networkStats();
     const diskLayout = await si.diskLayout();
     const fsSize = await si.fsSize();
+    const cpuTemp = await si.cpuTemperature();
+    const cpuFanSpeed = await si.cpuFanSpeed();
     
     // Calculate uptime in human readable format
     const uptime = process.uptime();
@@ -51,7 +53,9 @@ app.get('/api/system', async (req, res) => {
         cores: cpu.cores,
         physicalCores: cpu.physicalCores,
         speed: cpu.speed,
-        currentLoad: currentLoad.currentLoad
+        currentLoad: currentLoad.currentLoad,
+        temperature: cpuTemp.main || 0,
+        fanSpeed: cpuFanSpeed.speed || 0
       },
       memory: {
         total: mem.total,

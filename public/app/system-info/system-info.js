@@ -37,8 +37,10 @@ class SystemInfoApp {
       { label: 'Processor', value: `${this.systemData.cpu.brand}` },
       { label: 'Core', value: `${this.systemData.cpu.cores} core` },
       { label: 'Kecepatan', value: `${this.systemData.cpu.speed} GHz` },
+      { label: 'Suhu', value: `${this.systemData.cpu.temperature}°C` },
+      { label: 'Kipas (RPM)', value: this.systemData.cpu.fanSpeed ? `${this.systemData.cpu.fanSpeed} RPM` : 'Tidak tersedia' },
       { label: 'Pemakaian', value: `${this.systemData.cpu.currentLoad.toFixed(2)}%` }
-    ]);
+    ], this.systemData.cpu.currentLoad);
 
     // Update Memory info
     this.updateCard('memory', [

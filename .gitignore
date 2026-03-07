@@ -150,3 +150,10 @@ main-data/
 *.bak
 *.backup
 *.old
+
+# App folder files (keep existing tracked files but ignore new ones)
+public/app/*/app.json
+public/app/notes/
+public/app/browser/
+public/app/settings/
+public/app/tiktok-downloader/

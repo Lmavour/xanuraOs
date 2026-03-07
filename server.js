@@ -5,6 +5,7 @@ const si = require('systeminformation');
 const fs = require('fs');
 const os = require('os');
 const multer = require('multer');
+const axios = require('axios');
 
 const app = express();
 const PORT = process.env.PORT || 4038;
@@ -242,12 +243,41 @@ app.get('/api/photos', (req, res) => {
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
       photos = photos.filter(photo => new Date(photo.modified) > oneWeekAgo);
+    } else if (tab === 'favorites') {
+      // Get favorites from client-side storage (this is a simplified approach)
+      // In a real app, you'd store favorites server-side
+      const favorites = req.query.favorites ? req.query.favorites.split(',') : [];
+      photos = photos.filter(photo => favorites.includes(photo.name));
     }
     
     res.json(photos);
   } catch (error) {
     console.error('Error loading photos:', error);
     res.status(500).json({ error: 'Failed to load photos' });
+  }
+});
+
+// Delete photo endpoint
+app.delete('/api/photos/:filename', (req, res) => {
+  try {
+    const { filename } = req.params;
+    const mainDataPath = path.join(__dirname, '..', 'main-data');
+    const filePath = path.join(mainDataPath, filename);
+    
+    // Security check - ensure file is within main-data directory
+    if (!filePath.startsWith(mainDataPath)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Photo not found' });
+    }
+    
+    fs.unlinkSync(filePath);
+    res.json({ message: 'Photo deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting photo:', error);
+    res.status(500).json({ error: 'Failed to delete photo' });
   }
 });
 
@@ -465,6 +495,85 @@ app.post('/api/settings', (req, res) => {
   }
 });
 
+
+// TikTok Downloader endpoints
+
+// Get TikTok video info
+app.post('/api/tiktok/info', async (req, res) => {
+  try {
+    const { url } = req.body;
+    
+    if (!url) {
+      return res.status(400).json({ error: 'URL is required' });
+    }
+    
+    // Validate TikTok URL
+    if (!url.includes('tiktok.com')) {
+      return res.status(400).json({ error: 'Invalid TikTok URL' });
+    }
+    
+    // Generate random video data for demonstration
+    const randomId = Math.floor(Math.random() * 1000000);
+    const mockVideoData = {
+      id: 'video_' + Date.now(),
+      title: `Amazing TikTok Video #${randomId}`,
+      author: `TikTok User ${randomId}`,
+      authorAvatar: `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70)}`,
+      thumbnail: 'https://placehold.co/600x800/ff0050/ffffff?text=TikTok+Video',
+      duration: '0:' + (15 + Math.floor(Math.random() * 45)),
+      likes: Math.floor(Math.random() * 1000000).toLocaleString(),
+      comments: Math.floor(Math.random() * 10000).toLocaleString(),
+      shares: Math.floor(Math.random() * 50000).toLocaleString(),
+      description: `This is an amazing TikTok video that you'll love! Check out this awesome content from TikTok User ${randomId}.`,
+      downloadOptions: [
+        { quality: 'HD (1080p)', size: '15-25 MB', url: '#', type: 'video/mp4' },
+        { quality: 'SD (720p)', size: '5-10 MB', url: '#', type: 'video/mp4' },
+        { quality: 'Audio Only', size: '2-3 MB', url: '#', type: 'audio/mp3' }
+      ]
+    };
+    
+    res.json(mockVideoData);
+  } catch (error) {
+    console.error('Error fetching TikTok info:', error);
+    res.status(500).json({ error: 'Failed to fetch TikTok video information' });
+  }
+});
+
+// Download TikTok video
+app.post('/api/tiktok/download', async (req, res) => {
+  try {
+    const { url, quality } = req.body;
+    
+    if (!url) {
+      return res.status(400).json({ error: 'URL is required' });
+    }
+    
+    // In a real implementation, you would:
+    // 1. Fetch the video from TikTok
+    // 2. Process it (remove watermark, convert format, etc.)
+    // 3. Stream it back to the client
+    
+    // For now, we'll return a mock download URL
+    const mockDownloadUrl = `/api/tiktok/mock-download?url=${encodeURIComponent(url)}&quality=${quality}`;
+    
+    res.json({
+      downloadUrl: mockDownloadUrl,
+      filename: `tiktok_video_${Date.now()}.mp4`,
+      size: quality === 'HD' ? '25 MB' : '10 MB',
+      message: 'Video ready for download'
+    });
+  } catch (error) {
+    console.error('Error downloading TikTok video:', error);
+    res.status(500).json({ error: 'Failed to download TikTok video' });
+  }
+});
+
+// Mock download endpoint (serves a sample video)
+app.get('/api/tiktok/mock-download', (req, res) => {
+  // In a real implementation, you would serve the actual downloaded video
+  // For now, we'll redirect to a sample video
+  res.redirect('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4');
+});
 
 // Restart server endpoint
 app.post('/api/restart', (req, res) => {

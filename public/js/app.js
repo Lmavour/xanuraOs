@@ -58,6 +58,12 @@ class AndroidOS {
     try {
       this.currentApp = this.apps[appName];
       await this.currentApp.init();
+      
+      // Call render if the app has this method (for apps that need additional setup after HTML is loaded)
+      if (this.currentApp.render && typeof this.currentApp.render === 'function') {
+        await this.currentApp.render();
+      }
+      
       this.currentScreen = appName;
     } catch (error) {
       console.error(`Error launching app ${appName}:`, error);

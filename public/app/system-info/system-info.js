@@ -30,17 +30,17 @@ class SystemInfoApp {
   }
 
   updateSystemInfoUI() {
-    if (!this.systemData) return;
+    if (!this.systemData || !this.systemData.cpu) return;
 
     // Update CPU info
     this.updateCard('cpu', [
-      { label: 'Processor', value: `${this.systemData.cpu.brand}` },
-      { label: 'Core', value: `${this.systemData.cpu.cores} core` },
-      { label: 'Kecepatan', value: `${this.systemData.cpu.speed} GHz` },
-      { label: 'Suhu', value: `${this.systemData.cpu.temperature}°C` },
+      { label: 'Processor', value: `${this.systemData.cpu.brand || 'Unknown'}` },
+      { label: 'Core', value: `${this.systemData.cpu.cores || 0} core` },
+      { label: 'Kecepatan', value: `${this.systemData.cpu.speed || 0} GHz` },
+      { label: 'Suhu', value: `${this.systemData.cpu.temperature || 0}°C` },
       { label: 'Kipas (RPM)', value: this.systemData.cpu.fanSpeed ? `${this.systemData.cpu.fanSpeed} RPM` : 'Tidak tersedia' },
-      { label: 'Pemakaian', value: `${this.systemData.cpu.currentLoad.toFixed(2)}%` }
-    ], this.systemData.cpu.currentLoad);
+      { label: 'Pemakaian', value: `${(this.systemData.cpu.currentLoad || 0).toFixed(2)}%` }
+    ], this.systemData.cpu.currentLoad || 0);
 
     // Update Memory info
     this.updateCard('memory', [

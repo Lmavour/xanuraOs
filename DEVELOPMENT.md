@@ -494,6 +494,337 @@ Server akan berjalan di:
 3. Test perubahan
 4. Submit pull request
 
+## 🚀 Performance & Caching Implementation
+
+### Overview
+Android OS Web mengimplementasikan sistem caching multi-layer untuk memastikan load time < 3 detik dan offline capability.
+
+### 1. Browser Cache Configuration
+
+#### Cache-Control Headers
+Server mengkonfigurasi header cache yang berbeda untuk setiap jenis file:
+
+```javascript
+// Static assets (CSS, JS, Images)
+Cache-Control: public, max-age=31536000, immutable
+
+// HTML files
+Cache-Control: public, max-age=0, must-revalidate
+
+// API responses
+Cache-Control: public, max-age=86400
+```
+
+#### Implementation di server.js
+```javascript
+const staticOptions = {
+  maxAge: 1000 * 60 * 60 * 24 * 365, // 1 year
+  etag: true,
+  lastModified: true,
+  setHeaders: (res, path) => {
+    if (path.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+    } else if (path.endsWith('.js') || path.endsWith('.css')) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
+    // ... lainnya
+  }
+};
+
+app.use(express.static('public', staticOptions));
+```
+
+### 2. Service Worker Implementation
+
+#### Multi-Layer Caching Strategy
+```javascript
+// Static cache untuk core assets
+const STATIC_CACHE = 'android-os-static-v1.0.0';
+
+// Dynamic cache untuk API responses
+const DYNAMIC_CACHE = 'android-os-dynamic-v1.0.0';
+
+// Files yang di-cache secara statis
+const STATIC_ASSETS = [
+  '/',
+  '/index.html',
+  '/css/style.css',
+  '/js/app.js',
+  '/js/auto-app-loader.js',
+  'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css'
+];
+```
+
+#### Cache Strategy
+- **Static assets**: Cache permanen dengan version control
+- **API responses**: Cache dinamis dengan background sync
+- **Images**: Cache dengan lazy loading
+- **Offline capability**: Fallback ke cache saat offline
+
+### 3. Cache-Busting Mechanism
+
+#### Version Control
+Semua aset menggunakan version parameter untuk cache invalidation:
+
+```html
+<!-- Versioned assets -->
+<link rel="stylesheet" href="/css/style.css?v=1.0.0">
+<script src="/js/app.js?v=1.0.0"></script>
+```
+
+#### Service Worker Versioning
+```javascript
+// Register dengan version
+navigator.serviceWorker.register('/sw.js?v=1.0.0')
+
+// Cache naming dengan version
+const CACHE_NAME = 'android-os-v1.0.0';
+```
+
+### 4. Lazy Loading Implementation
+
+#### Wallpaper Loading di settings.js
+```javascript
+async cacheWallpaper(wallpaper) {
+  // Check cache dulu
+  if (this.wallpaperCache.has(wallpaper.id)) {
+    return this.wallpaperCache.get(wallpaper.id);
+  }
+  
+  // Lazy loading dengan performance monitoring
+  const img = new Image();
+  img.loading = 'lazy';
+  img.src = `${wallpaper.url}?v=1.0.0`;
+  
+  return new Promise((resolve, reject) => {
+    img.onload = () => {
+      const loadTime = performance.now() - startTime;
+      console.log(`Wallpaper loaded in ${loadTime.toFixed(2)}ms`);
+      resolve(this.wallpaperCache.set(wallpaper.id, img));
+    };
+  });
+}
+```
+
+#### Progressive Loading Strategy
+```javascript
+async preloadWallpapers() {
+  // Load 3 wallpaper prioritas dulu
+  const priorityWallpapers = this.unsplashWallpapers.slice(0, 3);
+  await Promise.all(priorityWallpapers.map(w => this.cacheWallpaper(w)));
+  
+  // Lazy load sisanya setelah 2 detik
+  setTimeout(() => {
+    const remaining = this.unsplashWallpapers.slice(3);
+    remaining.forEach(w => this.cacheWallpaper(w));
+  }, 2000);
+}
+```
+
+### 5. Icon Preloading
+
+#### Critical Icons Preload
+```javascript
+preloadCriticalIcons() {
+  const criticalIcons = [
+    'bi-house', 'bi-arrow-left', 'bi-grid-3x3-gap',
+    'bi-gear', 'bi-folder', 'bi-image'
+  ];
+  
+  // Preload dengan DOM manipulation
+  const preloadDiv = document.createElement('div');
+  criticalIcons.forEach(iconClass => {
+    const icon = document.createElement('i');
+    icon.className = `bi ${iconClass}`;
+    preloadDiv.appendChild(icon);
+  });
+  
+  document.body.appendChild(preloadDiv);
+  // Remove setelah 1 detik
+  setTimeout(() => document.body.removeChild(preloadDiv), 1000);
+}
+```
+
+#### Resource Hints di HTML
+```html
+<!-- Preload critical resources -->
+<link rel="preload" href="/js/app.js?v=1.0.0" as="script">
+<link rel="preload" href="/js/auto-app-loader.js?v=1.0.0" as="script">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/fonts/bootstrap-icons.woff2" as="font" type="font/woff2" crossorigin>
+
+<!-- DNS prefetch untuk external resources -->
+<link rel="dns-prefetch" href="//cdn.jsdelivr.net">
+<link rel="dns-prefetch" href="//images.unsplash.com">
+```
+
+### 6. Performance Monitoring
+
+#### Client-side Monitoring
+```javascript
+// Load time measurement
+window.addEventListener('load', () => {
+  const loadTime = performance.timing.loadEventEnd - performance.timing.navigationStart;
+  console.log(`Page load time: ${loadTime}ms`);
+  
+  // Send ke server
+  if (navigator.sendBeacon) {
+    const data = new FormData();
+    data.append('loadTime', loadTime);
+    data.append('timestamp', Date.now());
+    navigator.sendBeacon('/api/analytics/performance', data);
+  }
+});
+
+// Resource loading monitoring
+const observer = new PerformanceObserver((list) => {
+  list.getEntries().forEach((entry) => {
+    if (entry.duration > 1000) {
+      console.warn(`Slow resource: ${entry.name} took ${entry.duration}ms`);
+    }
+  });
+});
+observer.observe({ entryTypes: ['resource'] });
+```
+
+#### Server-side Monitoring
+```javascript
+// Performance data endpoint
+app.post('/api/analytics/performance', (req, res) => {
+  const { loadTime, timestamp } = req.body;
+  
+  console.log(`Performance: ${loadTime}ms from ${req.ip}`);
+  
+  // Log warning jika slow
+  if (loadTime > 3000) {
+    console.warn(`Slow load time: ${loadTime}ms`);
+  }
+});
+
+// Metrics endpoint
+app.get('/api/analytics/metrics', (req, res) => {
+  res.json({
+    uptime: process.uptime(),
+    memoryUsage: process.memoryUsage(),
+    cpuUsage: process.cpuUsage(),
+    timestamp: Date.now()
+  });
+});
+```
+
+### 7. Performance Testing
+
+#### Test Suite Implementation
+File: `public/performance-test.html`
+
+Test categories:
+1. **Cache Status Check** - Verifikasi cache configuration
+2. **Load Time Test** - Pengukuran load time
+3. **Service Worker Test** - Offline capability testing
+4. **Resource Loading Test** - Resource optimization testing
+5. **Performance Metrics** - Real-time metrics
+6. **Overall Score** - Comprehensive performance scoring
+
+#### Usage
+```bash
+# Akses test suite
+http://localhost:4038/performance-test.html
+
+# Check cache status
+curl http://localhost:4038/api/cache/status
+
+# Get performance metrics
+curl http://localhost:4038/api/analytics/metrics
+```
+
+### 8. Best Practices untuk Caching
+
+#### Untuk Developers
+1. **Gunakan version control** untuk semua aset statis
+2. **Implement lazy loading** untuk resources berat
+3. **Monitor performance** secara berkala
+4. **Test offline functionality** dengan Service Worker
+5. **Optimize images** dengan format WebP
+
+#### Configuration Parameters
+```javascript
+// Cache duration settings
+const CACHE_CONFIG = {
+  STATIC_ASSETS: 365 * 24 * 60 * 60 * 1000, // 1 year
+  API_RESPONSES: 24 * 60 * 60 * 1000,     // 1 day
+  HTML_FILES: 0,                           // no cache
+  IMAGES: 365 * 24 * 60 * 60 * 1000       // 1 year
+};
+
+// Performance thresholds
+const PERFORMANCE_THRESHOLDS = {
+  EXCELLENT_LOAD_TIME: 1000,  // 1 second
+  GOOD_LOAD_TIME: 3000,        // 3 seconds
+  SLOW_RESOURCE: 1000,         // 1 second
+  WARNING_MEMORY: 100 * 1024 * 1024  // 100MB
+};
+```
+
+#### Usage Examples
+```javascript
+// Cache wallpaper dengan performance monitoring
+async applyWallpaper(wallpaperId) {
+  const startTime = performance.now();
+  
+  // Lazy loading implementation
+  const img = new Image();
+  img.loading = 'lazy';
+  img.src = `${wallpaperUrl}?v=1.0.0`;
+  
+  img.onload = () => {
+    const loadTime = performance.now() - startTime;
+    console.log(`Wallpaper applied in ${loadTime.toFixed(2)}ms`);
+  };
+}
+
+// Service worker cache management
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== STATIC_CACHE && cacheName !== DYNAMIC_CACHE) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+});
+```
+
+### 9. Troubleshooting Performance
+
+#### Common Issues
+1. **Cache tidak update**: Increment version number
+2. **Service Worker tidak register**: Check HTTPS requirement
+3. **Load time lambat**: Check network tab untuk large resources
+4. **Offline tidak berfungsi**: Verify cache storage
+
+#### Debug Tools
+```javascript
+// Check cache status
+caches.keys().then(keys => console.log('Cache keys:', keys));
+
+// Check service worker status
+navigator.serviceWorker.getRegistration().then(reg => {
+  console.log('SW state:', reg.active?.state);
+});
+
+// Monitor performance
+performance.getEntriesByType('navigation').forEach(entry => {
+  console.log('Load metrics:', {
+    domContentLoaded: entry.domContentLoadedEventEnd - entry.domContentLoadedEventStart,
+    loadComplete: entry.loadEventEnd - entry.loadEventStart,
+    totalTime: entry.loadEventEnd - entry.navigationStart
+  });
+});
+```
+
 ## License
 
 MIT License - lihat file LICENSE untuk detail

@@ -4,8 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Android OS - Home</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <meta name="description" content="Android OS Web Interface - Fast, responsive, and offline-capable">
+    <meta name="theme-color" content="#2196F3">
+    
+    <!-- Cache-busting with version control -->
+    <link rel="stylesheet" href="/css/style.css?v=1.0.0">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css?v=1.0.0">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📱</text></svg>">
+    
+    <!-- Preload critical resources -->
+    <link rel="preload" href="/js/app.js?v=1.0.0" as="script">
+    <link rel="preload" href="/js/auto-app-loader.js?v=1.0.0" as="script">
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/fonts/bootstrap-icons.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <!-- DNS prefetch for external resources -->
+    <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="//images.unsplash.com">
+    
+    <!-- Preconnect for critical external resources -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
 </head>
 <body>
     <div class="android-container">
@@ -16,7 +34,7 @@
             </div>
             <div class="status-right">
                 <span class="battery">100%</span>
-                <span class="wifi">📶</span>
+                <span class="wifi"><i class="bi bi-wifi"></i></span>
             </div>
         </div>
 
@@ -42,18 +60,83 @@
         <!-- Navigation Bar -->
         <div class="nav-bar">
             <div class="nav-btn home-btn" data-action="home">
-                <div class="nav-icon">🏠</div>
+                <div class="nav-icon"><i class="bi bi-house"></i></div>
             </div>
             <div class="nav-btn back-btn" data-action="back">
-                <div class="nav-icon">⬅️</div>
+                <div class="nav-icon"><i class="bi bi-arrow-left"></i></div>
             </div>
             <div class="nav-btn apps-btn" data-action="apps">
-                <div class="nav-icon">⬜</div>
+                <div class="nav-icon"><i class="bi bi-grid-3x3-gap"></i></div>
             </div>
         </div>
     </div>
 
-    <script src="/js/auto-app-loader.js"></script>
-    <script src="/js/app.js"></script>
+    <!-- Service Worker Registration -->
+    <script>
+        // Register service worker with cache-busting
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js?v=1.0.0')
+                    .then((registration) => {
+                        console.log('[SW] Service Worker registered successfully:', registration.scope);
+                        
+                        // Check for updates
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    console.log('[SW] New content available, refreshing...');
+                                    window.location.reload();
+                                }
+                            });
+                        });
+                    })
+                    .catch((error) => {
+                        console.error('[SW] Service Worker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+    
+    <!-- Performance Monitoring -->
+    <script>
+        // Monitor page load performance
+        window.addEventListener('load', () => {
+            if ('performance' in window) {
+                const loadTime = performance.timing.loadEventEnd - performance.timing.navigationStart;
+                console.log(`[PERF] Page load time: ${loadTime}ms`);
+                
+                // Log performance metrics
+                if (loadTime > 3000) {
+                    console.warn('[PERF] Page load time exceeds 3 seconds:', loadTime);
+                }
+                
+                // Send performance data to analytics (optional)
+                if (navigator.sendBeacon) {
+                    const data = new FormData();
+                    data.append('loadTime', loadTime);
+                    data.append('timestamp', Date.now());
+                    // navigator.sendBeacon('/api/analytics/performance', data);
+                }
+            }
+        });
+        
+        // Monitor resource loading
+        const observer = new PerformanceObserver((list) => {
+            list.getEntries().forEach((entry) => {
+                if (entry.duration > 1000) {
+                    console.warn(`[PERF] Slow resource detected: ${entry.name} took ${entry.duration}ms`);
+                }
+            });
+        });
+        
+        if ('PerformanceObserver' in window) {
+            observer.observe({ entryTypes: ['resource'] });
+        }
+    </script>
+    
+    <!-- Cache-busted scripts -->
+    <script src="/js/auto-app-loader.js?v=1.0.0"></script>
+    <script src="/js/app.js?v=1.0.0"></script>
 </body>
 </html>

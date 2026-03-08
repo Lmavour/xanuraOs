@@ -21,11 +21,46 @@ const upload = multer({
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
 
-// Serve static files from main-data directory
-app.use('/api/photos', express.static(path.join(__dirname, '..', 'main-data')));
-app.use('/api/videos', express.static(path.join(__dirname, '..', 'main-data')));
+// Configure static file caching with optimal headers
+const staticOptions = {
+  maxAge: 1000 * 60 * 60 * 24 * 365, // 1 year
+  etag: true,
+  lastModified: true,
+  setHeaders: (res, path) => {
+    if (path.endsWith('.html')) {
+      // HTML files should not be cached aggressively
+      res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+    } else if (path.endsWith('.js') || path.endsWith('.css')) {
+      // JS and CSS files can be cached with versioning
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    } else if (path.endsWith('.png') || path.endsWith('.jpg') || path.endsWith('.jpeg') || path.endsWith('.gif') || path.endsWith('.webp')) {
+      // Image files can be cached for a long time
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    } else if (path.includes('bootstrap-icons')) {
+      // Bootstrap icons should be cached aggressively
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    } else {
+      // Other static files
+      res.setHeader('Cache-Control', 'public, max-age=86400'); // 1 day
+    }
+  }
+};
+
+app.use(express.static('public', staticOptions));
+
+// Serve static files from main-data directory with caching
+app.use('/api/photos', express.static(path.join(__dirname, '..', 'main-data'), {
+  maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days
+  etag: true,
+  lastModified: true
+}));
+
+app.use('/api/videos', express.static(path.join(__dirname, '..', 'main-data'), {
+  maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days
+  etag: true,
+  lastModified: true
+}));
 
 // System information endpoint
 app.get('/api/system', async (req, res) => {
@@ -37,8 +72,18 @@ app.get('/api/system', async (req, res) => {
     const networkStats = await si.networkStats();
     const diskLayout = await si.diskLayout();
     const fsSize = await si.fsSize();
-    const cpuTemp = await si.cpuTemperature();
-    const cpuFanSpeed = await si.cpuFanSpeed();
+    let cpuTemp, cpuFanSpeed;
+    try {
+      cpuTemp = await si.cpuTemperature();
+    } catch (e) {
+      cpuTemp = { main: 0 };
+    }
+    
+    try {
+      cpuFanSpeed = await si.cpuFanSpeed();
+    } catch (e) {
+      cpuFanSpeed = { speed: 0 };
+    }
     
     // Calculate uptime in human readable format
     const uptime = process.uptime();
@@ -464,22 +509,26 @@ if (!fs.existsSync(settingsPath)) {
     notifications: true,
     autoSave: true,
     fontSize: 'medium',
-    animationSpeed: 'normal'
+    animationSpeed: 'normal',
+    wallpaper: 'default'
   }));
 }
 
 // Get settings
 app.get('/api/settings', (req, res) => {
   try {
+    console.log('[DEBUG] Server: GET /api/settings requested');
     if (fs.existsSync(settingsPath)) {
       const settingsData = fs.readFileSync(settingsPath, 'utf8');
       const settings = JSON.parse(settingsData);
+      console.log('[DEBUG] Server: Settings read from file:', settings);
       res.json(settings);
     } else {
+      console.log('[DEBUG] Server: Settings file not found, returning empty object');
       res.json({});
     }
   } catch (error) {
-    console.error('Error reading settings:', error);
+    console.error('[DEBUG] Server: Error reading settings:', error);
     res.status(500).json({ error: 'Failed to read settings' });
   }
 });
@@ -488,13 +537,15 @@ app.get('/api/settings', (req, res) => {
 app.post('/api/settings', (req, res) => {
   try {
     const settings = req.body;
+    console.log('[DEBUG] Server: POST /api/settings with data:', settings);
     
     // Save settings
     fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+    console.log('[DEBUG] Server: Settings saved to file successfully');
     
     res.json({ message: 'Settings saved successfully' });
   } catch (error) {
-    console.error('Error saving settings:', error);
+    console.error('[DEBUG] Server: Error saving settings:', error);
     res.status(500).json({ error: 'Failed to save settings' });
   }
 });
@@ -594,8 +645,77 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Performance monitoring endpoint
+app.post('/api/analytics/performance', (req, res) => {
+  try {
+    const { loadTime, timestamp } = req.body;
+    
+    console.log(`[PERF] Performance data received: Load time ${loadTime}ms at ${new Date(timestamp).toISOString()}`);
+    
+    // Store performance data (in a real app, you'd save to a database)
+    const performanceData = {
+      loadTime,
+      timestamp,
+      userAgent: req.get('User-Agent'),
+      ip: req.ip
+    };
+    
+    // Log performance metrics
+    if (loadTime > 3000) {
+      console.warn(`[PERF] Slow load time detected: ${loadTime}ms from ${req.ip}`);
+    } else if (loadTime < 1000) {
+      console.log(`[PERF] Excellent load time: ${loadTime}ms from ${req.ip}`);
+    }
+    
+    res.json({ message: 'Performance data received' });
+  } catch (error) {
+    console.error('[PERF] Error processing performance data:', error);
+    res.status(500).json({ error: 'Failed to process performance data' });
+  }
+});
+
+// Performance metrics endpoint
+app.get('/api/analytics/metrics', (req, res) => {
+  try {
+    // Return basic performance metrics
+    const metrics = {
+      uptime: process.uptime(),
+      memoryUsage: process.memoryUsage(),
+      cpuUsage: process.cpuUsage(),
+      timestamp: Date.now()
+    };
+    
+    console.log('[PERF] Performance metrics requested');
+    res.json(metrics);
+  } catch (error) {
+    console.error('[PERF] Error getting performance metrics:', error);
+    res.status(500).json({ error: 'Failed to get performance metrics' });
+  }
+});
+
+// Cache status endpoint
+app.get('/api/cache/status', (req, res) => {
+  try {
+    const cacheStatus = {
+      staticCache: 'Configured with optimal headers',
+      serviceWorker: 'Implemented with offline capability',
+      cacheBusting: 'Version control enabled (v1.0.0)',
+      lazyLoading: 'Implemented for wallpapers',
+      preloading: 'Implemented for critical icons'
+    };
+    
+    console.log('[PERF] Cache status requested');
+    res.json(cacheStatus);
+  } catch (error) {
+    console.error('[PERF] Error getting cache status:', error);
+    res.status(500).json({ error: 'Failed to get cache status' });
+  }
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Home Server running on http://0.0.0.0:${PORT}`);
   console.log(`Access locally at: http://localhost:${PORT}`);
   console.log(`Access on network at: http://192.168.0.50:${PORT}`);
+  console.log(`[PERF] Performance monitoring enabled`);
+  console.log(`[PERF] Caching optimizations implemented`);
 });

@@ -1,4 +1,4 @@
-class AndroidOS {
+hclass AndroidOS {
   constructor() {
     this.currentScreen = 'home';
     this.currentApp = null;
@@ -53,7 +53,7 @@ class AndroidOS {
       // Apply wallpaper on page load
       if (settings.wallpaper) {
         console.log('[DEBUG] Applying wallpaper:', settings.wallpaper);
-        this.applyWallpaper(settings.wallpaper);
+        await this.applyWallpaper(settings.wallpaper);
       } else {
         console.log('[DEBUG] No wallpaper setting found, using default');
       }
@@ -81,6 +81,15 @@ class AndroidOS {
     }
     
     console.log('[PERF] Home screen element found:', homeScreen);
+    
+    // Update global settings
+    if (this.settings) {
+      this.settings.wallpaper = wallpaperId;
+      console.log('[PERF] Updated global settings wallpaper to:', wallpaperId);
+      
+      // Save settings to server
+      await this.saveGlobalSettings();
+    }
     
     // Predefined dynamic wallpapers (same as in SettingsApp)
     const unsplashWallpapers = {
@@ -143,6 +152,33 @@ class AndroidOS {
       
       const loadTime = performance.now() - startTime;
       console.log(`[PERF] Static wallpaper applied in ${loadTime.toFixed(2)}ms`);
+    }
+  }
+
+  async saveGlobalSettings() {
+    try {
+      if (!this.settings) {
+        console.log('[PERF] No settings to save');
+        return;
+      }
+      
+      console.log('[PERF] Saving global settings:', this.settings);
+      
+      const response = await fetch('/api/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(this.settings)
+      });
+      
+      if (response.ok) {
+        console.log('[PERF] Global settings saved successfully');
+      } else {
+        console.error('[PERF] Failed to save global settings:', response.status);
+      }
+    } catch (error) {
+      console.error('[PERF] Error saving global settings:', error);
     }
   }
 
@@ -352,39 +388,12 @@ class AndroidOS {
     console.log('[PERF] Preloading critical icons...');
     const startTime = performance.now();
     
-    // Critical Bootstrap icons to preload
-    const criticalIcons = [
-      'bi-house',
-      'bi-arrow-left',
-      'bi-grid-3x3-gap',
-      'bi-gear',
-      'bi-folder',
-      'bi-image',
-      'bi-play-circle',
-      'bi-file-text',
-      'bi-info-circle'
-    ];
+    // Skip preloading if it's causing performance issues
+    // Bootstrap icons will load when needed anyway
+    console.log('[PERF] Skipping icon preloading to avoid performance issues');
     
-    // Create a temporary div to preload icons
-    const preloadDiv = document.createElement('div');
-    preloadDiv.style.position = 'absolute';
-    preloadDiv.style.left = '-9999px';
-    preloadDiv.style.visibility = 'hidden';
-    
-    criticalIcons.forEach(iconClass => {
-      const iconElement = document.createElement('i');
-      iconElement.className = `bi ${iconClass}`;
-      preloadDiv.appendChild(iconElement);
-    });
-    
-    document.body.appendChild(preloadDiv);
-    
-    // Remove the preload div after icons are loaded
-    setTimeout(() => {
-      document.body.removeChild(preloadDiv);
-      const loadTime = performance.now() - startTime;
-      console.log(`[PERF] Critical icons preloaded in ${loadTime.toFixed(2)}ms`);
-    }, 1000);
+    const loadTime = performance.now() - startTime;
+    console.log(`[PERF] Icon preload skipped in ${loadTime.toFixed(2)}ms`);
   }
 }
 
